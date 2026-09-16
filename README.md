@@ -33,6 +33,36 @@ def http_get(url, headers):
         return resp.status, resp.read().decode("utf-8")
 
 def lambda_handler(event, context):
+def lambda_handler(event, context):
+    # 1. Extract action from Bedrock AgentCore context or event
+    action = ""
+    try:
+        if context and context.client_context and context.client_context.custom:
+            custom = context.client_context.custom
+            action = custom.get("bedrockAgentCoreToolName", "")
+            if "___" in action:
+                action = action.split("___")[-1]  # Strip target prefix
+    except Exception:
+        pass
+
+    if not action:
+        action = event.get("name") or event.get("action") or ""
+
+    # Fallback inference based on arguments present in event
+    params = event.get("arguments") or event.get("parameters") or event
+    if not action:
+        if "filePath" in params:
+            action = "readFile"
+        elif "pageId" in params:
+            action = "fetchConfluencePage"
+        elif "query" in params:
+            action = "searchConfluencePages"
+        elif "repo" in params:
+            action = "getFileTree"
+
+    # [Continue with secrets retrieval and your existing if/elif action branches...]
+
+
     # Retrieve secrets dynamically from AWS Secrets Manager
     git_token = get_secret("spectrace/git-token")
     if isinstance(git_token, dict):
