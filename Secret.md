@@ -72,6 +72,54 @@ confluence
             }
 
 
+————-fetch confluence———-
+
+    elif "fetchconfluence" in action_lower:
+        # 1. Unpack credentials safely to avoid string index errors
+        creds = get_secret("spectrace/confluence-creds")
+        if isinstance(creds, str):
+            try:
+                creds = json.loads(creds)
+                if isinstance(creds, str):
+                    creds = json.loads(creds)
+            except Exception:
+                creds = {}
+
+        username = creds.get("username") or creds.get("email", "")
+        api_token = creds.get("api_token") or creds.get("token", "")
+        domain = creds.get("domain", "").replace("https://", "").rstrip("/")
+
+        # 2. Build Basic Auth
+        auth_raw = f"{username}:{api_token}".encode("utf-8")
+        auth_b64 = base64.b64encode(auth_raw).decode("utf-8")
+
+        # 3. Extract pageId safely
+        page_id = event.get("pageId") or event.get("pageid") or event.get("id", "")
+
+        url = f"https://{domain}/wiki/rest/api/content/{page_id}?expand=body.storage"
+        headers = {
+            "Authorization": f"Basic {auth_b64}",
+            "Accept": "application/json"
+        }
+
+        try:
+            res = http_get(url, headers)
+            # Safely navigate dictionary structure
+            body = ""
+            if isinstance(res, dict):
+                body = res.get("body", {}).get("storage", {}).get("value", "")
+
+            return {
+                "content": [{"type": "text", "text": body}]
+            }
+        except Exception as e:
+            return {
+                "content": [{"type": "text", "text": f"Confluence fetch error: {str(e)}"}],
+                "isError": True
+            }
+
+
+
 
 
             
