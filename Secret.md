@@ -119,6 +119,21 @@ confluence
             }
 
 
+——- 
+no host 
+———
+conf_creds = get_secret("spectrace/confluence-creds")
+if isinstance(conf_creds, str):
+    conf_creds = json.loads(conf_creds)
+
+email = conf_creds.get("email", "").strip()
+token = conf_creds.get("token", "").strip()
+domain = conf_creds.get("domain", "").replace("https://", "").replace("http://", "").split("/")[0].strip()
+
+auth_raw = f"{email}:{token}".encode("utf-8")
+auth_b64 = base64.b64encode(auth_raw).decode("utf-8")
+
+
 
 
 
