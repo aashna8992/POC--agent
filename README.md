@@ -9,7 +9,119 @@ aws secretsmanager create-secret \
 aws secretsmanager create-secret \
   --name "spectrace/confluence-creds" \
   --secret-string '{"email":"<YOUR_EMAIL>","token":"<CONFLUENCE_TOKEN>","domain":"<YOUR_DOMAIN>.atlassian.net"}'
+—————
+new lambda code
+import json
+import boto3
+import urllib.request
+import urllib.parse
+import base64
 
+secrets_client = boto3.client("secretsmanager")
+
+def get_secret(secret_id):
+    resp = secrets_client.get_secret_value(SecretId=secret_id)
+    raw = resp.get("SecretString", "")
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return raw.strip()
+
+def http_get(url, headers):
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req) as resp:
+        return resp.status, resp.read().decode("utf-8")
+
+def lambda_handler(event, context):
+    # Retrieve secrets dynamically from AWS Secrets Manager
+    git_token = get_secret("spectrace/git-token")
+    if isinstance(git_token, dict):
+        git_token = git_token.get("token") or git_token.get("pat") or list(git_token.values())[0]
+
+    conf_creds = get_secret("spectrace/confluence-creds")
+    if isinstance(conf_creds, dict):
+        conf_domain = conf_creds.get("domain", "").replace("https://", "").rstrip("/")
+        conf_user = conf_creds.get("username") or conf_creds.get("email") or ""
+        conf_token = conf_creds.get("token") or conf_creds.get("api_token") or ""
+    else:
+        conf_domain, conf_user, conf_token = "", "", ""
+
+    # Parse action and parameters from MCP Gateway event wrapper
+    action = event.get("name") or event.get("action") or ""
+    params = event.get("arguments") or event.get("parameters") or event
+
+    try:
+        # 1. Search Confluence Pages
+        if action == "searchConfluencePages":
+            query = params.get("query", "")
+            cql = urllib.parse.quote(f'type=page AND text ~ "{query}"')
+            url = f"https://{conf_domain}/wiki/rest/api/search?cql={cql}&limit=5"
+            auth_str = base64.b64encode(f"{conf_user}:{conf_token}".encode()).decode()
+            headers = {"Authorization": f"Basic {auth_str}", "Accept": "application/json"}
+            
+            status, body = http_get(url, headers)
+            results = json.loads(body).get("results", [])
+            return [
+                {"pageId": r["content"]["id"], "title": r["content"]["title"]}
+                for r in results if "content" in r
+            ]
+
+        # 2. Fetch Single Confluence Page
+        elif action == "fetchConfluencePage":
+            page_id = str(params.get("pageId", ""))
+            url = f"https://{conf_domain}/wiki/rest/api/content/{page_id}?expand=body.storage"
+            auth_str = base64.b64encode(f"{conf_user}:{conf_token}".encode()).decode()
+            headers = {"Authorization": f"Basic {auth_str}", "Accept": "application/json"}
+            
+            status, body = http_get(url, headers)
+            data = json.loads(body)
+            return {
+                "title": data.get("title", ""),
+                "body": data.get("body", {}).get("storage", {}).get("value", "")
+            }
+
+        # 3. Get Git File Tree
+        elif action == "getFileTree":
+            repo = params.get("repo", "").strip("/")
+            branch = params.get("branch", "main")
+            url = f"https://api.github.com/repos/{repo}/git/trees/{branch}?recursive=1"
+            headers = {
+                "Authorization": f"token {git_token}",
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "spectrace-inspector"
+            }
+            
+            status, body = http_get(url, headers)
+            tree_data = json.loads(body)
+            paths = [f["path"] for f in tree_data.get("tree", []) if f.get("type") == "blob"]
+            return {"fileCount": len(paths), "paths": paths[:400]}
+
+        # 4. Read Git File Contents
+        elif action == "readFile":
+            repo = params.get("repo", "").strip("/")
+            file_path = params.get("filePath", "").lstrip("/")
+            branch = params.get("branch", "main")
+            url = f"https://api.github.com/repos/{repo}/contents/{file_path}?ref={branch}"
+            headers = {
+                "Authorization": f"token {git_token}",
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "spectrace-inspector"
+            }
+            
+            status, body = http_get(url, headers)
+            file_data = json.loads(body)
+            content_b64 = file_data.get("content", "")
+            decoded = base64.b64decode(content_b64).decode("utf-8", errors="ignore")
+            return {"filePath": file_path, "content": decoded}
+
+        else:
+            return {"error": f"Unknown action: {action}"}
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+—————-
 
 ————-
 import json
