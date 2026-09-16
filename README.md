@@ -352,3 +352,41 @@ When given a feature request with a Confluence page ID and repository names:
    - Section 4: Gap & Ambiguity Ledger (MANDATORY: If a queue consumer, table, downstream API, or procedure was referenced but could not be located in the files, mark it as UNKNOWN and explicitly state the missing repository or dependency required to resolve it).
 
 CRITICAL RULE: Never guess or hallucinate database tables or downstream consumers. If you cannot find the definition in the files, categorize it as UNKNOWN.
+
+—————
+Trace the feature "Instant Payouts" end-to-end across all provided documentation and repositories.
+
+Target Repositories:
+1. org/repo-one (branch: main)
+2. org/repo-two (branch: main)
+3. org/repo-three (branch: main)
+4. org/repo-four (branch: main)
+5. org/repo-five (branch: main)
+6. org/repo-six (branch: main)
+7. org/repo-seven (branch: main)
+8. org/repo-eight (branch: main)
+9. org/repo-nine (branch: main)
+
+Execution Protocol:
+1. Search Confluence using `searchConfluencePages` for keywords: "Instant Payout", "Payout", "Disbursement". Read matching pages via `fetchConfluencePage`. If no documentation is found, continue using repositories as the single source of truth.
+2. Run `getFileTree` across all 9 repositories. Filter for relevant entry points (Controllers, Listeners/Consumers, Workflows, Services, DB Migrations/Procedures).
+3. Systematically use `readFile` on discovered files to follow data execution from the trigger/UI/API, through service layers, down to the persistence layer.
+
+Deliverables Required:
+
+1. Executive Business Narrative:
+   - What the feature does from a user/business standpoint.
+   - Core financial domain rules, limits, state machines, and validations.
+
+2. End-to-End Mermaid Sequence Diagram:
+   - Step-by-step trace showing exact actor interactions: [Caller/UI] -> [Service APIs] -> [Event Buses/Queues] -> [DB Operations].
+   - Annotate calls with payload summaries, HTTP verbs, and event topics.
+
+3. Technical Data Flow & DB Catalog:
+   - Provide a Markdown table of every database object touched:
+     | Table / View / Stored Proc | Repo & File Source | Operation (Insert/Update/Select) | Purpose & Key Columns Mutated |
+   - Explain transactional boundaries (commit/rollback conditions, distributed transactions, idempotency keys).
+
+4. Verification & Gap Ledger:
+   - Explicitly list any unverified endpoints, implicit assumptions, or missing table definitions as UNKNOWN. Do not guess uninspected logic.
+
