@@ -140,7 +140,64 @@ def lambda_handler(event, context):
   }
 }
 
-
+—-
+[
+  {
+    "name": "fetchConfluencePage",
+    "description": "Fetches Confluence PRD content by page ID",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "pageId": {
+          "type": "string",
+          "description": "The Confluence page ID"
+        }
+      },
+      "required": ["pageId"]
+    }
+  },
+  {
+    "name": "getFileTree",
+    "description": "Lists all file paths in a given repository and branch",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "repo": {
+          "type": "string",
+          "description": "The GitHub repo in 'owner/name' format"
+        },
+        "branch": {
+          "type": "string",
+          "description": "Branch name (default: main)"
+        }
+      },
+      "required": ["repo"]
+    }
+  },
+  {
+    "name": "readFile",
+    "description": "Reads the exact text content of a single code or SQL file from Git",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "repo": {
+          "type": "string",
+          "description": "The GitHub repo in 'owner/name' format"
+        },
+        "filePath": {
+          "type": "string",
+          "description": "Full path to the file in the repository"
+        },
+        "branch": {
+          "type": "string",
+          "description": "Branch name (default: main)"
+        }
+      },
+      "required": ["repo", "filePath"]
+    }
+  }
+]
+————————
 ———-
 
 You are an expert fintech software architect. Your job is to reverse-engineer features across Confluence, Git repositories, and Database scripts.
