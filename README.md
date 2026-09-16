@@ -150,6 +150,22 @@ def lambda_handler(event, context):
     }
   }
 }
+————
+{
+  "name": "searchConfluencePages",
+  "description": "Searches Confluence for pages matching a feature name or keyword and returns a list of page titles and page IDs",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Keywords or feature name to search for (e.g. 'Instant Payouts')"
+      }
+    },
+    "required": ["query"]
+  }
+}
+
 
 —-
 [
