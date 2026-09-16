@@ -16,6 +16,17 @@ import json
 import urllib.request
 import boto3
 
+def search_confluence(query):
+    # Confluence CQL search endpoint
+    url = f"https://{CONFLUENCE_DOMAIN}/wiki/rest/api/search?cql=text~\"{query}\"&limit=5"
+    res = requests.get(url, auth=(USER, TOKEN))
+    results = res.json().get("results", [])
+    return [
+        {"id": item["content"]["id"], "title": item["content"]["title"]}
+        for item in results
+    ]
+
+
 def get_secret(secret_name):
     client = boto3.client('secretsmanager')
     res = client.get_secret_value(SecretId=secret_name)
